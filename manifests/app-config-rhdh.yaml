@@ -1,0 +1,81 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: app-config-rhdh
+data:
+  app-config-rhdh.yaml: |
+    app:
+      title: Red Hat Developer Hub
+    auth:
+      # see https://backstage.io/docs/auth/ to learn about auth providers
+      environment: development
+      providers:
+        github:
+          development:
+            clientId: ${AUTH_GITHUB_CLIENT_ID}
+            clientSecret: ${AUTH_GITHUB_CLIENT_SECRET}
+    argocd:
+      baseUrl: https://openshift-gitops-server-openshift-gitops.apps.rh-ocp-01.cool.lab
+    catalog:
+      import:
+        entityFilename: catalog-info.yaml
+        pullRequestBranchName: rhdh-integration
+      rules:
+        - allow: [Component, System, Group, Resource, Location, Template, API]
+      locations:
+        - type: url
+          target: https://github.com/janus-idp/software-templates/blob/main/showcase-templates.yaml
+        - type: url
+          target: https://github.com/earvonen/backstage-user/blob/main/eero.yaml
+          rules:
+            - allow: [User]
+      providers:
+        github:
+          myorg:
+            organization: RedHatNordicsSA
+        githubOrg:
+          default:
+            id: production
+            orgUrl: 'https://github.com/organizations/RedHatNordicsSA/'
+    integrations:
+      github:
+        - host: github.com
+          apps:
+            - appId: ${GITHUB_APP_APP_ID}
+              clientId: ${GITHUB_APP_CLIENT_ID}
+              clientSecret: ${GITHUB_APP_CLIENT_SECRET}
+              webhookUrl: ${GITHUB_APP_WEBHOOK_URL}
+              webhookSecret: ${GITHUB_APP_WEBHOOK_SECRET}
+              privateKey: |
+                ${GITHUB_APP_PRIVATE_KEY}
+    kubernetes:
+      clusterLocatorMethods:
+        - clusters:
+          - authProvider: serviceAccount
+            name: ${K8S_CLUSTER_NAME}
+            serviceAccountToken: ${K8S_CLUSTER_TOKEN}
+            url: ${K8S_CLUSTER_URL}
+            skipTLSVerify: true
+          type: config
+      customResources:
+        - apiVersion: v1beta1
+          group: tekton.dev
+          plural: pipelineruns
+        - apiVersion: v1beta1
+          group: tekton.dev
+          plural: taskruns
+      serviceLocatorMethod:
+        type: multiTenant
+    proxy:
+      '/argocd/api':
+        changeOrigin: true
+        headers:
+          Cookie:
+            $env: ARGOCD_AUTH_TOKEN
+        secure: false
+        target: https://openshift-gitops-server-openshift-gitops.apps.rh-ocp-01.cool.lab/api/v1/
+    enabled:
+      argocd: true
+      github: true
+      githubOrg: true
+      kubernetes: true
